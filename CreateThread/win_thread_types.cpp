@@ -1,0 +1,1 @@
+typedef HANDLE (WINAPI *LPTHREAD_START_ROUTINE)(void*);
