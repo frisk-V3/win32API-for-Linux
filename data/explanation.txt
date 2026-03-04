@@ -1,0 +1,2 @@
+# win32 for Linux
+これはWin32APIをLinuxで移植するProjectです
