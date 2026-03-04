@@ -1,4 +1,4 @@
-# Mini‑Win32 実装状況（対応 API 一覧）
+# win32API for Linux（対応 API 一覧）
 
 Linux 上で Win32 API を本気で互換実装するプロジェクト。  
 以下は現在実装済みの API と対応ファイル一覧。
