@@ -4,7 +4,7 @@
 
 #pragma comment(lib, "dbghelp.lib")
 
-// プロセスのシンボル初期化（PDBファイルの読み込み準備）
+
 extern "C" bool InitializeSymbols(HANDLE hProcess) {
     // ユーザー検索パス（カレントディレクトリや環境変数）を考慮して初期化
     return SymInitialize(hProcess, NULL, TRUE);
