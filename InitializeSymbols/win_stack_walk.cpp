@@ -4,7 +4,7 @@
 
 // 現在のスレッドのスタックを1段階遡る
 extern "C" bool WalkNextStackFrame(HANDLE hProcess, HANDLE hThread, STACKFRAME64* frame, CONTEXT* context) {
-    // x64環境を想定したスタックウォーク
+    // x64環境を想定したスタックワーク
     return StackWalk64(
         IMAGE_FILE_MACHINE_AMD64,
         hProcess,
