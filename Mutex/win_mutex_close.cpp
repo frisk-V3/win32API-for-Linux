@@ -1,5 +1,8 @@
 bool CloseHandle(MUTEX_HANDLE h) {
-    pthread_mutex_destroy(&h->mutex);
-    delete h;
-    return true;
+    if (h == nullptr) return false;
+
+    int result = pthread_mutex_destroy(&h->mutex);
+    
+    delete h; 
+    return (result == 0);
 }
