@@ -1,39 +1,60 @@
 #include <windows.h>
 #include <iostream>
 #include <memory>
+#include <cstdint>
 
-// 1. RAIIによる自動解放（スマートポインタの活用）
+// 1. デリータの洗練：noexcept の付与と、型安全な unique_ptr
 struct VirtualFreeDeleter {
-    void operator()(LPVOID p) const {
+    void operator()(void* p) const noexcept {
         if (p) {
-            // MEM_RELEASE の場合、サイズは 0 である必要があります
-            VirtualFree(p, 0, MEM_RELEASE);
+            // VirtualFree が失敗することは稀だが、デバッグ時は成否を確認すべき
+            if (!VirtualFree(p, 0, MEM_RELEASE)) {
+                // 必要に応じてログ出力など
+            }
         }
     }
 };
-using VirtualPtr = std::unique_ptr<void, VirtualFreeDeleter>;
 
-void Example() {
-    // 2. システムのページサイズを考慮する
+// バイト単位で操作しやすいよう、デフォルトを uint8_t に設定
+using VirtualMemoryPtr = std::unique_ptr<uint8_t[], VirtualFreeDeleter>;
+
+// アライメント計算をユーティリティ化
+inline size_t align_to_page(size_t size, size_t pageSize) noexcept {
+    return (size + pageSize - 1) & ~(pageSize - 1);
+}
+
+void SecureMemoryExample() {
+    // システム情報の取得
     SYSTEM_INFO si;
     GetSystemInfo(&si);
-    size_t pageSize = si.dwPageSize;
+    const size_t pageSize = si.dwPageSize;
 
-    // 例: 1024バイト必要でも、実際は最小単位（通常4KB）で確保される
-    size_t allocSize = (1024 + pageSize - 1) & ~(pageSize - 1);
+    // 2. 必要なサイズをページ単位に切り上げ
+    const size_t requestedSize = 1024;
+    const size_t allocSize = align_to_page(requestedSize, pageSize);
 
-    // 3. 安全なメモリ確保
-    VirtualPtr pAddr(VirtualAlloc(nullptr, allocSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+    // 3. メモリの確保 (COMMIT と RESERVE を同時に行う)
+    VirtualMemoryPtr pData(static_cast<uint8_t*>(
+        VirtualAlloc(nullptr, allocSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE)
+    ));
 
-    if (!pAddr) {
-        // エラー処理（GetLastError()で詳細取得可能）
+    if (!pData) {
+        // DWORD error = GetLastError();
         return;
     }
 
-    // 書き込み処理...
-    // pAddr.get() で生のポインタにアクセス
-    auto data = static_cast<uint8_t*>(pAddr.get());
-    data[0] = 0xFF;
+    // --- データの書き込み ---
+    pData[0] = 0xDE;
+    pData[1] = 0xAD;
+    pData[2] = 0xBE;
+    pData[3] = 0xEF;
 
-    // スコープを抜ける際に自動的に VirtualFree されるため、リークの心配がない
+    // 4. 「本気」の仕上げ：書き込みが終わったら保護属性を変更する
+    // これにより、不慮の書き込み（バグや攻撃）によるデータ改ざんを防止
+    DWORD oldProtect;
+    if (VirtualProtect(pData.get(), allocSize, PAGE_READONLY, &oldProtect)) {
+        // これ以降、pData[0] = 0x00; などを行うとアクセス違反で即座にクラッシュする（安全）
+    }
+
+    // スコープ終了時に VirtualFree が自動的に呼ばれる
 }
